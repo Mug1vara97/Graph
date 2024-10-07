@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace WinFormsApp1
@@ -72,15 +73,43 @@ namespace WinFormsApp1
             this.MouseDown += Form1_MouseDown;
             this.MouseMove += Form1_MouseMove;
             this.MouseUp += Form1_MouseUp;
+
+            Button saveButton = new Button();
+            saveButton.Text = "Сохранить";
+            saveButton.Click += SaveButton_Click;
+            saveButton.Location = new Point(10, 110);
+            this.Controls.Add(saveButton);
+
+            // Добавляем кнопку "Загрузить"
+            Button loadButton = new Button();
+            loadButton.Text = "Загрузить";
+            loadButton.Click += LoadButton_Click;
+            loadButton.Location = new Point(10, 140);
+            this.Controls.Add(loadButton);
+        }
+        private void SaveButton_Click(object sender, EventArgs e)
+        {
+            SaveGraph();
         }
 
+        private void LoadButton_Click(object sender, EventArgs e)
+        {
+            LoadGraph();
+        }
         private void Form1_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
             {
-                pendingPoint = e.Location;
-                createVertexButton.Location = new Point(e.X, e.Y);
-                createVertexButton.Visible = true;
+                if (IsOnEmptySpace(e.Location))
+                {
+                    pendingPoint = e.Location;
+                    createVertexButton.Location = new Point(e.X, e.Y);
+                    createVertexButton.Visible = true;
+                }
+                else
+                {
+                    createVertexButton.Visible = false;
+                }
 
                 selectedCircleIndex = -1;
 
@@ -112,19 +141,26 @@ namespace WinFormsApp1
                     changeLabelButton.Visible = false;
                 }
 
-                for (int i = 0; i < connections.Count; i++)
+                if (isConnectingMode)
                 {
-                    var connection = connections[i];
-                    Point p1 = circleCenters[connection.Item1];
-                    Point p2 = circleCenters[connection.Item2];
-
-                    if (IsPointOnLine(e.Location, p1, p2))
+                    for (int i = 0; i < connections.Count; i++)
                     {
-                        deleteEdgeButton.Location = new Point(e.X, e.Y + 90);
-                        deleteEdgeButton.Visible = true;
-                        return;
+                        var connection = connections[i];
+                        Point p1 = circleCenters[connection.Item1];
+                        Point p2 = circleCenters[connection.Item2];
+
+                        if (IsPointOnLine(e.Location, p1, p2))
+                        {
+                            deleteEdgeButton.Location = new Point(e.X, e.Y + 10);
+                            deleteEdgeButton.Visible = true;
+                            createVertexButton.Visible = false;
+                            deleteVertexButton.Visible = false;
+                            changeLabelButton.Visible = false;
+                            return;
+                        }
                     }
                 }
+
 
                 deleteEdgeButton.Visible = false;
             }
@@ -172,6 +208,20 @@ namespace WinFormsApp1
                     }
                 }
             }
+        }
+
+        private bool IsOnEmptySpace(Point p)
+        {
+            foreach (Point center in circleCenters)
+            {
+                int diameter = 60;
+                if (p.X >= center.X - diameter / 2 && p.X <= center.X + diameter / 2 &&
+                    p.Y >= center.Y - diameter / 2 && p.Y <= center.Y + diameter / 2)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private bool IsPointOnLine(Point p, Point p1, Point p2)
@@ -408,6 +458,8 @@ namespace WinFormsApp1
             {
                 connectButton.Text = "Закончить";
                 connectButton.BackColor = Color.LightGreen;
+                deleteVertexButton.Visible = false;
+                changeLabelButton.Visible = false;
             }
             else
             {
@@ -416,5 +468,137 @@ namespace WinFormsApp1
                 firstSelectedVertex = -1;
             }
         }
+        private void SaveGraph()
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "Graph Files (*.graph)|*.graph";
+            saveFileDialog.Title = "Сохранить граф";
+
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string filePath = saveFileDialog.FileName;
+
+                var graphData = new
+                {
+                    x0 = 0,
+                    y0 = 0,
+                    vertices = circleCenters.Select((center, index) => new
+                    {
+                        x = center.X,
+                        y = center.Y,
+                        name = vertexLabels[index],
+                        radius = 20,
+                        background = "#ffffff",
+                        fontSize = 18,
+                        color = "#000000",
+                        border = "#000000"
+                    }).ToList(),
+                    edges = connections.Select((connection, index) => new
+                    {
+                        vertex1 = connection.Item1,
+                        vertex2 = connection.Item2,
+                        weight = connection.Item4.ToString(),
+                        isDirected = connection.Item3,
+                        controlStep = 0,
+                        fontSize = 18,
+                        lineWidth = 2,
+                        background = "#000000",
+                        color = "#000000"
+                    }).ToList(),
+                    texts = new List<object>()
+                };
+
+                string jsonData = JsonSerializer.Serialize(graphData, new JsonSerializerOptions { WriteIndented = true });
+
+                File.WriteAllText(filePath, jsonData);
+            }
+        }
+
+        private void LoadGraph()
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Graph Files (*.graph)|*.graph";
+            openFileDialog.Title = "Загрузить граф";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string filePath = openFileDialog.FileName;
+
+                try
+                {
+                    circleCenters.Clear();
+                    vertexLabels.Clear();
+                    connections.Clear();
+                    availableIds.Clear();
+                    nextId = 1;
+
+                    string jsonData = File.ReadAllText(filePath);
+
+                    var graphData = JsonSerializer.Deserialize<GraphData>(jsonData);
+
+                    foreach (var vertex in graphData.vertices)
+                    {
+                        circleCenters.Add(new Point(vertex.x, vertex.y));
+                        vertexLabels.Add(vertex.name);
+                        nextId = Math.Max(nextId, int.Parse(vertex.name) + 1);
+                    }
+
+                    foreach (var edge in graphData.edges)
+                    {
+                        connections.Add(new Tuple<int, int, bool, int>(
+                            edge.vertex1, edge.vertex2, edge.isDirected, int.Parse(edge.weight)));
+                    }
+
+                    for (int i = 1; i < nextId; i++)
+                    {
+                        if (!vertexLabels.Contains(i.ToString()))
+                        {
+                            availableIds.Add(i);
+                        }
+                    }
+
+                    this.Invalidate();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка при загрузке графа: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private class GraphData
+        {
+            public int x0 { get; set; }
+            public int y0 { get; set; }
+            public List<VertexData> vertices { get; set; }
+            public List<EdgeData> edges { get; set; }
+            public List<object> texts { get; set; }
+        }
+
+        private class VertexData
+        {
+            public int x { get; set; }
+            public int y { get; set; }
+            public string name { get; set; }
+            public int radius { get; set; }
+            public string background { get; set; }
+            public int fontSize { get; set; }
+            public string color { get; set; }
+            public string border { get; set; }
+        }
+
+        private class EdgeData
+        {
+            public int vertex1 { get; set; }
+            public int vertex2 { get; set; }
+            public string weight { get; set; }
+            public bool isDirected { get; set; }
+            public int controlStep { get; set; }
+            public int fontSize { get; set; }
+            public int lineWidth { get; set; }
+            public string background { get; set; }
+            public string color { get; set; }
+        }
+
     }
 }
