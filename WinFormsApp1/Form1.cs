@@ -28,35 +28,60 @@ namespace WinFormsApp1
         private List<int> availableIds = new List<int>();
         private int nextId = 1;
         private bool isConnectingMode = false;
+        private TabControl tabControl;
+        private TabPage tabPage1;
+        private TabPage tabPage2;
+        private Panel panel1;
+        private Panel panel2;
 
         public Form1()
         {
             InitializeComponent();
             this.DoubleBuffered = true;
 
+            tabControl = new TabControl();
+            tabControl.Dock = DockStyle.Fill;
+            this.Controls.Add(tabControl);
+
+            tabPage1 = new TabPage();
+            tabPage1.Text = "Граф";
+            tabControl.TabPages.Add(tabPage1);
+
+            tabPage2 = new TabPage();
+            tabPage2.Text = "Пустая страница";
+            tabControl.TabPages.Add(tabPage2);
+
+            panel1 = new Panel();
+            panel1.Dock = DockStyle.Fill;
+            tabPage1.Controls.Add(panel1);
+
+            panel2 = new Panel();
+            panel2.Dock = DockStyle.Fill;
+            tabPage2.Controls.Add(panel2);
+
             createVertexButton = new Button();
             createVertexButton.Text = "Создать вершину";
             createVertexButton.Click += CreateVertexButton_Click;
             createVertexButton.Visible = false;
-            this.Controls.Add(createVertexButton);
+            panel1.Controls.Add(createVertexButton);
 
             deleteVertexButton = new Button();
             deleteVertexButton.Text = "Удалить вершину";
             deleteVertexButton.Click += DeleteVertexButton_Click;
             deleteVertexButton.Visible = false;
-            this.Controls.Add(deleteVertexButton);
+            panel1.Controls.Add(deleteVertexButton);
 
             changeLabelButton = new Button();
             changeLabelButton.Text = "Изменить метку";
             changeLabelButton.Click += ChangeLabelButton_Click;
             changeLabelButton.Visible = false;
-            this.Controls.Add(changeLabelButton);
+            panel1.Controls.Add(changeLabelButton);
 
             deleteEdgeButton = new Button();
             deleteEdgeButton.Text = "Удалить ребро";
             deleteEdgeButton.Click += DeleteEdgeButton_Click;
             deleteEdgeButton.Visible = false;
-            this.Controls.Add(deleteEdgeButton);
+            panel1.Controls.Add(deleteEdgeButton);
 
             weightTextBox = new TextBox() { Location = new Point(10, 10), Width = 50, PlaceholderText = "Вес" };
             connectButton = new Button() { Location = new Point(10, 40), Text = "Соединить" };
@@ -65,28 +90,29 @@ namespace WinFormsApp1
             directedRadioButton = new RadioButton() { Location = new Point(10, 70), Text = "Направленное", Checked = true };
             undirectedRadioButton = new RadioButton() { Location = new Point(10, 90), Text = "Ненаправленное" };
 
-            this.Controls.Add(weightTextBox);
-            this.Controls.Add(connectButton);
-            this.Controls.Add(directedRadioButton);
-            this.Controls.Add(undirectedRadioButton);
+            panel1.Controls.Add(weightTextBox);
+            panel1.Controls.Add(connectButton);
+            panel1.Controls.Add(directedRadioButton);
+            panel1.Controls.Add(undirectedRadioButton);
 
-            this.MouseDown += Form1_MouseDown;
-            this.MouseMove += Form1_MouseMove;
-            this.MouseUp += Form1_MouseUp;
+            panel1.MouseDown += Panel1_MouseDown;
+            panel1.MouseMove += Panel1_MouseMove;
+            panel1.MouseUp += Panel1_MouseUp;
+            panel1.Paint += Panel1_Paint;
 
             Button saveButton = new Button();
             saveButton.Text = "Сохранить";
             saveButton.Click += SaveButton_Click;
             saveButton.Location = new Point(10, 110);
-            this.Controls.Add(saveButton);
+            panel1.Controls.Add(saveButton);
 
-            // Добавляем кнопку "Загрузить"
             Button loadButton = new Button();
             loadButton.Text = "Загрузить";
             loadButton.Click += LoadButton_Click;
             loadButton.Location = new Point(10, 140);
-            this.Controls.Add(loadButton);
+            panel1.Controls.Add(loadButton);
         }
+
         private void SaveButton_Click(object sender, EventArgs e)
         {
             SaveGraph();
@@ -96,7 +122,8 @@ namespace WinFormsApp1
         {
             LoadGraph();
         }
-        private void Form1_MouseDown(object sender, MouseEventArgs e)
+
+        private void Panel1_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
             {
@@ -136,7 +163,7 @@ namespace WinFormsApp1
                 }
                 else
                 {
-                    selectedCircleIndex = -1; 
+                    selectedCircleIndex = -1;
                     deleteVertexButton.Visible = false;
                     changeLabelButton.Visible = false;
                 }
@@ -184,10 +211,10 @@ namespace WinFormsApp1
                             else if (firstSelectedVertex != i)
                             {
                                 ConnectVertices(firstSelectedVertex, i);
-                                firstSelectedVertex = -1; 
-                                break; 
+                                firstSelectedVertex = -1;
+                                break;
                             }
-                            break; 
+                            break;
                         }
                     }
                 }
@@ -208,6 +235,7 @@ namespace WinFormsApp1
                     }
                 }
             }
+            panel1.Invalidate();
         }
 
         private bool IsOnEmptySpace(Point p)
@@ -243,12 +271,12 @@ namespace WinFormsApp1
                 if (IsPointOnLine(pendingPoint, p1, p2))
                 {
                     connections.RemoveAt(i);
-                    break; 
+                    break;
                 }
             }
 
             deleteEdgeButton.Visible = false;
-            this.Invalidate();
+            panel1.Invalidate();
         }
 
         private void DeleteVertexButton_Click(object sender, EventArgs e)
@@ -273,7 +301,7 @@ namespace WinFormsApp1
                 changeLabelButton.Visible = false;
                 selectedCircleIndex = -1;
 
-                this.Invalidate();
+                panel1.Invalidate();
             }
         }
 
@@ -293,22 +321,22 @@ namespace WinFormsApp1
                     if (labelForm.ShowDialog() == DialogResult.OK)
                     {
                         vertexLabels[selectedCircleIndex] = labelTextBox.Text;
-                        this.Invalidate();
+                        panel1.Invalidate();
                     }
                 }
             }
         }
 
-        private void Form1_MouseMove(object sender, MouseEventArgs e)
+        private void Panel1_MouseMove(object sender, MouseEventArgs e)
         {
             if (isDragging && draggedCircleIndex >= 0)
             {
                 circleCenters[draggedCircleIndex] = e.Location;
-                this.Invalidate();
+                panel1.Invalidate();
             }
         }
 
-        private void Form1_MouseUp(object sender, MouseEventArgs e)
+        private void Panel1_MouseUp(object sender, MouseEventArgs e)
         {
             if (isDragging)
             {
@@ -334,7 +362,7 @@ namespace WinFormsApp1
             circleCenters.Add(pendingPoint);
             vertexLabels.Add(vertexId.ToString());
             createVertexButton.Visible = false;
-            this.Invalidate();
+            panel1.Invalidate();
         }
 
         private void ConnectVertices(int vertex1Index, int vertex2Index)
@@ -350,9 +378,8 @@ namespace WinFormsApp1
             connectButton.Text = "Соединить";
             connectButton.BackColor = SystemColors.Control;
 
-            this.Invalidate();
+            panel1.Invalidate();
         }
-
 
         private void DrawArrow(Graphics g, Point p1, Point p2)
         {
@@ -415,9 +442,8 @@ namespace WinFormsApp1
             }
         }
 
-        protected override void OnPaint(PaintEventArgs e)
+        private void Panel1_Paint(object sender, PaintEventArgs e)
         {
-            base.OnPaint(e);
             Graphics g = e.Graphics;
 
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -467,7 +493,9 @@ namespace WinFormsApp1
                 connectButton.BackColor = SystemColors.Control;
                 firstSelectedVertex = -1;
             }
+            panel1.Invalidate();
         }
+
         private void SaveGraph()
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog();
@@ -557,7 +585,7 @@ namespace WinFormsApp1
                         }
                     }
 
-                    this.Invalidate();
+                    panel1.Invalidate();
                 }
                 catch (Exception ex)
                 {
@@ -599,6 +627,5 @@ namespace WinFormsApp1
             public string background { get; set; }
             public string color { get; set; }
         }
-
     }
 }
